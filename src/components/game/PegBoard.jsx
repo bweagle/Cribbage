@@ -50,6 +50,25 @@ export function PegBoard({
         className="peg-board"
         xmlns="http://www.w3.org/2000/svg"
       >
+        {/* Gradient definitions for 3D pegs */}
+        <defs>
+          <radialGradient id="blueGradient">
+            <stop offset="0%" style={{ stopColor: '#42a5f5', stopOpacity: 1 }} />
+            <stop offset="70%" style={{ stopColor: '#1976d2', stopOpacity: 1 }} />
+            <stop offset="100%" style={{ stopColor: '#0d47a1', stopOpacity: 1 }} />
+          </radialGradient>
+          <radialGradient id="redGradient">
+            <stop offset="0%" style={{ stopColor: '#ef5350', stopOpacity: 1 }} />
+            <stop offset="70%" style={{ stopColor: '#d32f2f', stopOpacity: 1 }} />
+            <stop offset="100%" style={{ stopColor: '#b71c1c', stopOpacity: 1 }} />
+          </radialGradient>
+          <radialGradient id="holeGradient">
+            <stop offset="0%" style={{ stopColor: '#000000', stopOpacity: 1 }} />
+            <stop offset="50%" style={{ stopColor: '#1a0f0a', stopOpacity: 1 }} />
+            <stop offset="100%" style={{ stopColor: '#2b1810', stopOpacity: 0.5 }} />
+          </radialGradient>
+        </defs>
+
         {/* Draw all holes */}
         {holes.slice(0, 122).map((hole) => (
           <circle
@@ -57,9 +76,6 @@ export function PegBoard({
             cx={hole.x}
             cy={hole.y}
             r="3"
-            fill="#d4af37"
-            stroke="#8B4513"
-            strokeWidth="0.5"
             className="peg-board-hole"
           />
         ))}
@@ -70,7 +86,6 @@ export function PegBoard({
             cx={player1Position.x}
             cy={player1Position.y}
             r="5"
-            fill="#2196F3"
             className="peg peg-player"
           />
         )}
@@ -80,7 +95,6 @@ export function PegBoard({
             cx={player2Position.x}
             cy={player2Position.y}
             r="5"
-            fill="#F44336"
             className="peg peg-opponent"
           />
         )}
@@ -91,7 +105,6 @@ export function PegBoard({
           y="140"
           fontSize="14"
           fontWeight="600"
-          fill="#212529"
           className="peg-label"
         >
           {player1Name}: {player1Score}
@@ -102,7 +115,6 @@ export function PegBoard({
           y="140"
           fontSize="14"
           fontWeight="600"
-          fill="#212529"
           className="peg-label"
         >
           {player2Name}: {player2Score}
@@ -116,14 +128,14 @@ export function PegBoard({
               y1={holes[121].y - 8}
               x2={holes[121].x - 5}
               y2={holes[121].y + 8}
-              stroke="#4CAF50"
+              stroke="#d4af37"
               strokeWidth="2"
             />
             <text
               x={holes[121].x + 3}
               y={holes[121].y + 4}
               fontSize="10"
-              fill="#4CAF50"
+              fill="#d4af37"
               fontWeight="600"
             >
               WIN

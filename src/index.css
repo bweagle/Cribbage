@@ -6,15 +6,21 @@
 }
 
 :root {
-  /* Color palette */
-  --primary-color: #2196F3;
-  --secondary-color: #4CAF50;
-  --danger-color: #F44336;
-  --warning-color: #FF9800;
-  --dark-color: #212529;
-  --gray-color: #6c757d;
-  --light-gray: #dee2e6;
-  --background-color: #f8f9fa;
+  /* Tavern Color Palette */
+  --primary-color: #d4af37; /* Golden */
+  --secondary-color: #8b4513; /* Saddle brown */
+  --danger-color: #8b0000; /* Dark red */
+  --warning-color: #b8860b; /* Dark goldenrod */
+  --dark-color: #1a0f0a;
+  --gray-color: #8b7355;
+  --light-gray: #5d4e37;
+  --background-color: #2b1810; /* Dark wood */
+  --wood-dark: #3e2723;
+  --wood-medium: #5d4037;
+  --wood-light: #795548;
+  --felt-green: #1a4d2e;
+  --brass-color: #b8860b;
+  --amber-glow: #ffa500;
 
   /* Card colors */
   --card-red: #DC143C;
@@ -45,8 +51,8 @@ body {
   padding: 0;
   min-width: 320px;
   min-height: 100vh;
-  color: var(--dark-color);
-  background-color: var(--background-color);
+  color: #e8d4b0; /* Warm cream text */
+  background: linear-gradient(135deg, #2b1810 0%, #1a0f0a 100%);
   overflow-x: hidden;
 }
 
@@ -59,7 +65,8 @@ body {
 h1, h2, h3, h4, h5, h6 {
   font-weight: 700;
   line-height: 1.2;
-  color: var(--dark-color);
+  color: var(--primary-color);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
 }
 
 h1 {

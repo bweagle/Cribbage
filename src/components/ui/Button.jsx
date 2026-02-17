@@ -16,19 +16,25 @@ export function Button({ children, onClick, size = 'medium', variant = 'primary'
 
   const variantStyles = {
     primary: {
-      backgroundColor: '#2196F3',
-      color: 'white',
-      border: '2px solid #2196F3',
+      background: 'linear-gradient(135deg, #d4af37 0%, #b8860b 100%)',
+      color: '#1a0f0a',
+      border: '2px solid #b8860b',
+      boxShadow: '0 4px 8px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.3)',
+      textShadow: '0 1px 1px rgba(255, 255, 255, 0.3)',
     },
     secondary: {
-      backgroundColor: 'white',
-      color: '#2196F3',
-      border: '2px solid #2196F3',
+      background: 'linear-gradient(135deg, #5d4037 0%, #3e2723 100%)',
+      color: '#e8d4b0',
+      border: '2px solid #8b7355',
+      boxShadow: '0 4px 8px rgba(0, 0, 0, 0.5)',
+      textShadow: '0 1px 2px rgba(0, 0, 0, 0.8)',
     },
     danger: {
-      backgroundColor: '#F44336',
-      color: 'white',
-      border: '2px solid #F44336',
+      background: 'linear-gradient(135deg, #8b0000 0%, #600000 100%)',
+      color: '#e8d4b0',
+      border: '2px solid #600000',
+      boxShadow: '0 4px 8px rgba(0, 0, 0, 0.5)',
+      textShadow: '0 1px 2px rgba(0, 0, 0, 0.8)',
     },
   };
 
@@ -53,13 +59,13 @@ export function Button({ children, onClick, size = 'medium', variant = 'primary'
       onMouseEnter={(e) => {
         if (!disabled) {
           e.target.style.transform = 'translateY(-2px)';
-          e.target.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.2)';
+          e.target.style.filter = 'brightness(1.1)';
         }
       }}
       onMouseLeave={(e) => {
         if (!disabled) {
           e.target.style.transform = 'translateY(0)';
-          e.target.style.boxShadow = 'none';
+          e.target.style.filter = 'brightness(1)';
         }
       }}
     >

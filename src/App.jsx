@@ -3,9 +3,12 @@ import { ErrorBoundary } from './components/ui/ErrorBoundary.jsx';
 import { WelcomeView } from './views/WelcomeView.jsx';
 import { LobbyView } from './views/LobbyView.jsx';
 import { DemoView } from './views/DemoView.jsx';
+import { GameView } from './views/GameView.jsx';
 
 function App() {
   const [currentView, setCurrentView] = useState('welcome');
+  const [gameConnection, setGameConnection] = useState(null);
+  const [gameRole, setGameRole] = useState(null);
 
   const handleStartGame = () => {
     setCurrentView('lobby');
@@ -13,11 +16,15 @@ function App() {
 
   const handleGameReady = (connection, role) => {
     // When Bluetooth connection is established, start game
+    setGameConnection(connection);
+    setGameRole(role);
     setCurrentView('game');
   };
 
   const handleBackToWelcome = () => {
     setCurrentView('welcome');
+    setGameConnection(null);
+    setGameRole(null);
   };
 
   const handleViewDemo = () => {
@@ -37,8 +44,16 @@ function App() {
         );
       case 'demo':
         return <DemoView onBack={handleBackToWelcome} />;
+      case 'game':
+        return (
+          <GameView
+            connection={gameConnection}
+            role={gameRole}
+            onBack={handleBackToWelcome}
+          />
+        );
       default:
-        return <WelcomeView onStartGame={handleStartGame} />;
+        return <WelcomeView onStartGame={handleStartGame} onViewDemo={handleViewDemo} />;
     }
   };
 
