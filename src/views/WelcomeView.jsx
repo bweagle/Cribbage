@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '../components/ui/Button.jsx';
 import { MESSAGES } from '../constants/messages.js';
 
-export function WelcomeView({ onStartGame }) {
+export function WelcomeView({ onStartGame, onViewDemo }) {
   const [isSupported, setIsSupported] = useState(false);
   const [platform, setPlatform] = useState('');
 
@@ -108,12 +108,24 @@ export function WelcomeView({ onStartGame }) {
         </p>
       </div>
 
-      <Button
-        size="large"
-        onClick={onStartGame}
-      >
-        Start Game
-      </Button>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <Button
+          size="large"
+          onClick={onStartGame}
+        >
+          Start Game
+        </Button>
+
+        {onViewDemo && (
+          <Button
+            size="medium"
+            variant="secondary"
+            onClick={onViewDemo}
+          >
+            View UI Demo
+          </Button>
+        )}
+      </div>
 
       <div style={{ marginTop: '60px', padding: '20px', backgroundColor: 'white', borderRadius: '12px', maxWidth: '500px' }}>
         <h3 style={{ fontSize: '20px', marginBottom: '16px', color: '#212529' }}>How to Play</h3>
