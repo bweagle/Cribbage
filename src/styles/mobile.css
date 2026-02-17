@@ -1,0 +1,250 @@
+/* Mobile-responsive utilities and optimizations */
+
+/* Mobile portrait (primary target) */
+@media (max-width: 480px) and (orientation: portrait) {
+  .card {
+    width: 18vw;
+    height: calc(18vw * 1.4);
+    font-size: 14px;
+  }
+
+  .card-rank {
+    font-size: 16px;
+  }
+
+  .card-suit {
+    font-size: 20px;
+  }
+
+  .hand {
+    gap: 6px;
+    padding: 12px;
+  }
+
+  .count-display {
+    font-size: 28px;
+  }
+
+  .status-bar {
+    flex-direction: column;
+    gap: 8px;
+    padding: 8px 12px;
+  }
+
+  .peg-board {
+    height: 100px;
+  }
+
+  h1 {
+    font-size: 28px;
+  }
+
+  h2 {
+    font-size: 24px;
+  }
+
+  .game-controls {
+    flex-wrap: wrap;
+  }
+}
+
+/* Mobile landscape */
+@media (max-width: 896px) and (orientation: landscape) {
+  .card {
+    width: 12vh;
+    height: calc(12vh * 1.4);
+  }
+
+  .peg-board {
+    height: 80px;
+    max-width: 70vw;
+  }
+
+  .play-area {
+    padding: 12px;
+    min-height: 80px;
+    margin: 8px;
+  }
+
+  .hand {
+    padding: 8px;
+  }
+
+  .status-bar {
+    padding: 8px 12px;
+  }
+}
+
+/* Tablet portrait */
+@media (min-width: 481px) and (max-width: 768px) and (orientation: portrait) {
+  .card {
+    width: 15vw;
+    height: calc(15vw * 1.4);
+  }
+
+  .hand {
+    gap: 8px;
+  }
+
+  .peg-board {
+    max-width: 600px;
+    height: 140px;
+  }
+}
+
+/* Tablet landscape and small desktop */
+@media (min-width: 768px) {
+  .card {
+    width: 80px;
+    height: 112px;
+  }
+
+  .card-rank {
+    font-size: 20px;
+  }
+
+  .card-suit {
+    font-size: 28px;
+  }
+
+  .game-view,
+  .lobby-view,
+  .welcome-view,
+  .results-view {
+    max-width: 600px;
+    margin: 0 auto;
+  }
+
+  .peg-board {
+    max-width: 600px;
+  }
+
+  .play-area {
+    max-width: 500px;
+    margin: 20px auto;
+  }
+}
+
+/* Touch-friendly adjustments */
+@media (hover: none) and (pointer: coarse) {
+  /* Increase touch targets */
+  .card {
+    min-width: 60px;
+    min-height: 84px;
+  }
+
+  button {
+    min-width: 48px;
+    min-height: 48px;
+    padding: 12px 24px;
+  }
+
+  .device-item {
+    min-height: 60px;
+  }
+
+  /* Remove hover effects on touch devices */
+  .card:hover {
+    transform: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  }
+
+  /* Add active/pressed state instead */
+  .card:active {
+    transform: scale(0.95);
+  }
+
+  button:active {
+    transform: scale(0.98);
+  }
+}
+
+/* Improve readability on small screens */
+@media (max-width: 360px) {
+  :root {
+    font-size: 14px;
+  }
+
+  .card {
+    width: 20vw;
+    height: calc(20vw * 1.4);
+  }
+
+  .count-display {
+    font-size: 24px;
+  }
+
+  .peg-board {
+    height: 90px;
+  }
+}
+
+/* Landscape optimization for very narrow devices */
+@media (max-height: 500px) and (orientation: landscape) {
+  .peg-board {
+    height: 60px;
+  }
+
+  .play-area {
+    min-height: 60px;
+    padding: 8px;
+    margin: 4px;
+  }
+
+  .hand {
+    padding: 4px;
+  }
+
+  .status-bar {
+    padding: 4px 8px;
+    font-size: 12px;
+  }
+
+  h1 {
+    font-size: 20px;
+  }
+
+  h2 {
+    font-size: 18px;
+  }
+}
+
+/* High DPI / Retina displays */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .card {
+    border-width: 0.5px; /* Sharper borders on retina */
+  }
+
+  .peg-board-hole {
+    stroke-width: 0.5;
+  }
+}
+
+/* Safe area insets for notched devices */
+@supports (padding-top: env(safe-area-inset-top)) {
+  body {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+
+  .status-bar {
+    padding-top: calc(env(safe-area-inset-top) + 12px);
+  }
+
+  .game-controls {
+    padding-bottom: calc(env(safe-area-inset-bottom) + 16px);
+  }
+}
+
+/* Prevent zoom on double-tap (iOS) */
+.no-zoom {
+  touch-action: manipulation;
+}
+
+/* Optimize scrolling performance */
+.scroll-container {
+  -webkit-overflow-scrolling: touch;
+  overflow-y: auto;
+}
