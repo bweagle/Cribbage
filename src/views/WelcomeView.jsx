@@ -7,8 +7,8 @@ export function WelcomeView({ onStartGame, onViewDemo }) {
   const [platform, setPlatform] = useState('');
 
   useEffect(() => {
-    // Check for Web Bluetooth support
-    const supported = navigator.bluetooth !== undefined;
+    // Check for WebRTC support (works on iOS, Android, and Desktop)
+    const supported = typeof RTCPeerConnection !== 'undefined';
     setIsSupported(supported);
 
     // Detect platform
@@ -35,13 +35,14 @@ export function WelcomeView({ onStartGame, onViewDemo }) {
   const titleStyle = {
     fontSize: '48px',
     fontWeight: '700',
-    color: '#2196F3',
+    color: '#d4af37',
     marginBottom: '16px',
+    textShadow: '0 2px 4px rgba(0, 0, 0, 0.8)',
   };
 
   const subtitleStyle = {
     fontSize: '20px',
-    color: '#6c757d',
+    color: '#e8d4b0',
     marginBottom: '40px',
   };
 
@@ -72,26 +73,11 @@ export function WelcomeView({ onStartGame, onViewDemo }) {
       <div style={containerStyle}>
         <h1 style={titleStyle}>🎴 Cribbage</h1>
         <div style={warningBoxStyle}>
-          <h2 style={warningTitleStyle}>Device Not Supported</h2>
+          <h2 style={warningTitleStyle}>Browser Not Supported</h2>
           <p style={warningTextStyle}>
-            {MESSAGES.BLUETOOTH_NOT_SUPPORTED}
+            Your browser doesn't support WebRTC, which is required for peer-to-peer gameplay.
+            Please use a modern browser like Chrome, Safari, or Edge.
           </p>
-          {platform === 'iOS' && (
-            <p style={{ ...warningTextStyle, marginTop: '16px' }}>
-              <strong>iOS users:</strong> Safari does not support Web Bluetooth.
-              Please use an Android device with Chrome or Edge to play.
-            </p>
-          )}
-          {platform === 'Desktop' && (
-            <p style={{ ...warningTextStyle, marginTop: '16px' }}>
-              <strong>Desktop users:</strong> This game is designed for mobile
-              devices with Bluetooth. Please use an Android phone or tablet.
-            </p>
-          )}
-        </div>
-        <div style={{ marginTop: '40px', color: '#6c757d' }}>
-          <p>📱 Supported: Android 6+ with Chrome or Edge</p>
-          <p>❌ Not supported: iOS, Firefox, Desktop browsers</p>
         </div>
       </div>
     );
@@ -103,8 +89,8 @@ export function WelcomeView({ onStartGame, onViewDemo }) {
       <p style={subtitleStyle}>Mobile peer-to-peer card game</p>
 
       <div style={{ marginBottom: '40px', maxWidth: '400px' }}>
-        <p style={{ fontSize: '18px', color: '#495057', marginBottom: '20px' }}>
-          Connect with a nearby player via Bluetooth and enjoy a classic game of cribbage!
+        <p style={{ fontSize: '18px', color: '#e8d4b0', marginBottom: '20px' }}>
+          Connect with another player using a simple room code and enjoy a classic game of cribbage!
         </p>
       </div>
 
@@ -127,19 +113,28 @@ export function WelcomeView({ onStartGame, onViewDemo }) {
         )}
       </div>
 
-      <div style={{ marginTop: '60px', padding: '20px', backgroundColor: 'white', borderRadius: '12px', maxWidth: '500px' }}>
-        <h3 style={{ fontSize: '20px', marginBottom: '16px', color: '#212529' }}>How to Play</h3>
-        <div style={{ textAlign: 'left', fontSize: '16px', color: '#495057', lineHeight: '1.6' }}>
-          <p>1. <strong>Host or Join:</strong> One player hosts, the other joins</p>
+      <div style={{
+        marginTop: '60px',
+        padding: '20px',
+        background: 'linear-gradient(135deg, #5d4037 0%, #3e2723 100%)',
+        borderRadius: '12px',
+        maxWidth: '500px',
+        border: '2px solid #d4af37',
+        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.6)'
+      }}>
+        <h3 style={{ fontSize: '20px', marginBottom: '16px', color: '#d4af37' }}>How to Play</h3>
+        <div style={{ textAlign: 'left', fontSize: '16px', color: '#e8d4b0', lineHeight: '1.6' }}>
+          <p>1. <strong>Host or Join:</strong> Host creates a 3-digit room code, other player joins</p>
           <p>2. <strong>Crib Phase:</strong> Select 2 cards for the crib</p>
           <p>3. <strong>Play Phase:</strong> Alternate playing cards (15s, pairs, runs score!)</p>
-          <p>4. <strong>Count Hands:</strong> Declare your points (watch for muggins!)</p>
+          <p>4. <strong>Count Hands:</strong> Enter your points manually</p>
           <p>5. <strong>First to 121 wins!</strong></p>
         </div>
       </div>
 
-      <div style={{ marginTop: '40px', fontSize: '14px', color: '#6c757d' }}>
-        <p>✓ You're using {platform} - Bluetooth supported!</p>
+      <div style={{ marginTop: '40px', fontSize: '14px', color: '#8b7355' }}>
+        <p>✓ {platform} - WebRTC supported!</p>
+        <p style={{ marginTop: '8px' }}>Works on iOS, Android, and Desktop</p>
       </div>
     </div>
   );
