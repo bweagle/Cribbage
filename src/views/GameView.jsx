@@ -6,11 +6,24 @@ import { PegBoard } from '../components/game/PegBoard.jsx';
 import { useGameState } from '../hooks/useGameState.js';
 import { MessageTypes } from '../constants/bluetoothConfig.js';
 
+// Helper function for card suit symbols
+const getCardSuitSymbol = (suit) => {
+  const symbols = {
+    hearts: '♥',
+    diamonds: '♦',
+    clubs: '♣',
+    spades: '♠'
+  };
+  return symbols[suit] || suit;
+};
+
 export function GameView({ connection, role, onBack }) {
   const [gameStarted, setGameStarted] = useState(false);
   const [gameSeed, setGameSeed] = useState(null);
   const [isDealer, setIsDealer] = useState(role === 'host');
   const [lastPoints, setLastPoints] = useState(0);
+  const [playerScoreInput, setPlayerScoreInput] = useState('');
+  const [countingPhase, setCountingPhase] = useState('waiting'); // 'waiting' | 'player-hand' | 'opponent-hand' | 'crib' | 'complete'
 
   const gameState = useGameState(gameSeed, isDealer);
 
@@ -55,6 +68,17 @@ export function GameView({ connection, role, onBack }) {
           gameState.addPlayerPoints(1); // Player gets 1 point for opponent's go
           setLastPoints(1);
           setTimeout(() => setLastPoints(0), 2000);
+          break;
+
+        case MessageTypes.DECLARE_SCORE:
+          // Opponent declared their score
+          gameState.addOpponentPoints(message.payload.points);
+          break;
+
+        case 'START_COUNTING':
+          // Move to counting phase
+          gameState.startCountingPhase();
+          setCountingPhase(gameState.isDealer ? 'opponent-hand' : 'player-hand');
           break;
 
         default:
@@ -113,6 +137,17 @@ export function GameView({ connection, role, onBack }) {
         setLastPoints(result.points);
         setTimeout(() => setLastPoints(0), 2000);
       }
+
+      // Check if play is complete after a short delay
+      setTimeout(() => {
+        if (gameState.checkPlayComplete()) {
+          connection.sendMessage({
+            type: 'START_COUNTING',
+            timestamp: Date.now(),
+            messageId: `count_${Date.now()}`
+          });
+        }
+      }, 500);
     }
   };
 
@@ -128,6 +163,55 @@ export function GameView({ connection, role, onBack }) {
         messageId: `go_${Date.now()}`
       });
     }
+
+    // Check if play is complete
+    setTimeout(() => {
+      if (gameState.checkPlayComplete()) {
+        // Notify opponent to start counting
+        connection.sendMessage({
+          type: 'START_COUNTING',
+          timestamp: Date.now(),
+          messageId: `count_${Date.now()}`
+        });
+      }
+    }, 500);
+  };
+
+  // Handle submitting hand score
+  const handleSubmitScore = async () => {
+    const points = parseInt(playerScoreInput);
+    if (isNaN(points) || points < 0) {
+      alert('Please enter a valid score');
+      return;
+    }
+
+    gameState.addPlayerPoints(points);
+    setPlayerScoreInput('');
+
+    // Send score to opponent
+    if (connection) {
+      await connection.sendMessage({
+        type: MessageTypes.DECLARE_SCORE,
+        timestamp: Date.now(),
+        payload: { points },
+        messageId: `score_${Date.now()}`
+      });
+    }
+
+    // Move to next counting phase
+    if (countingPhase === 'player-hand') {
+      setCountingPhase('opponent-hand');
+    } else if (countingPhase === 'opponent-hand') {
+      setCountingPhase(gameState.isDealer ? 'crib' : 'complete');
+    } else if (countingPhase === 'crib') {
+      setCountingPhase('complete');
+    }
+  };
+
+  // Handle starting next round
+  const handleNextRound = () => {
+    gameState.nextRound();
+    setCountingPhase('waiting');
   };
 
   // Fixed layout styles
@@ -262,12 +346,33 @@ export function GameView({ connection, role, onBack }) {
         )}
 
         {gameState.phase === 'play' && (
-          <PlayArea
-            playedCards={gameState.playedCards}
-            currentCount={gameState.currentCount}
-            lastPoints={lastPoints}
-            showCount={true}
-          />
+          <>
+            {gameState.starterCard && (
+              <div style={{ textAlign: 'center', marginBottom: '16px' }}>
+                <p style={{ fontSize: '14px', color: '#8b7355', marginBottom: '8px' }}>Starter Card:</p>
+                <div style={{
+                  width: '60px',
+                  height: '84px',
+                  background: 'white',
+                  borderRadius: '6px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '20px',
+                  border: '2px solid #d4af37',
+                  color: ['hearts', 'diamonds'].includes(gameState.starterCard.suit) ? '#DC143C' : '#1a1a1a'
+                }}>
+                  {gameState.starterCard.rank}{getCardSuitSymbol(gameState.starterCard.suit)}
+                </div>
+              </div>
+            )}
+            <PlayArea
+              playedCards={gameState.playedCards}
+              currentCount={gameState.currentCount}
+              lastPoints={lastPoints}
+              showCount={true}
+            />
+          </>
         )}
 
         {gameState.phase === 'play' && gameState.isPlayerTurn && (
@@ -280,10 +385,117 @@ export function GameView({ connection, role, onBack }) {
 
         {gameState.phase === 'count' && (
           <div style={messageStyle}>
-            <p>Counting phase - not yet implemented</p>
-            <p style={{ fontSize: '14px', marginTop: '12px', color: '#8b7355' }}>
-              Manual scoring will be added next
-            </p>
+            <h3 style={{ color: '#d4af37', marginBottom: '16px' }}>Counting Phase</h3>
+
+            {gameState.starterCard && (
+              <div style={{ marginBottom: '20px' }}>
+                <p style={{ fontSize: '14px', color: '#8b7355', marginBottom: '8px' }}>Starter Card:</p>
+                <div style={{ display: 'flex', justifyContent: 'center' }}>
+                  <div style={{
+                    width: '70px',
+                    height: '98px',
+                    background: 'white',
+                    borderRadius: '6px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '24px',
+                    border: '2px solid #d4af37'
+                  }}>
+                    {gameState.starterCard.rank}{getCardSuitSymbol(gameState.starterCard.suit)}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {countingPhase === 'player-hand' && (
+              <div>
+                <p style={{ marginBottom: '12px' }}>Count your hand with the starter card</p>
+                <p style={{ fontSize: '14px', color: '#8b7355', marginBottom: '16px' }}>
+                  Your hand: {gameState.playerHand.length} cards
+                </p>
+                <input
+                  type="number"
+                  min="0"
+                  max="29"
+                  value={playerScoreInput}
+                  onChange={(e) => setPlayerScoreInput(e.target.value)}
+                  placeholder="Enter points"
+                  style={{
+                    fontSize: '24px',
+                    padding: '12px',
+                    borderRadius: '8px',
+                    border: '2px solid #d4af37',
+                    background: '#3e2723',
+                    color: '#d4af37',
+                    width: '150px',
+                    textAlign: 'center',
+                    marginBottom: '16px'
+                  }}
+                />
+                <div>
+                  <Button onClick={handleSubmitScore}>
+                    Submit Score
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {countingPhase === 'opponent-hand' && (
+              <div>
+                <p style={{ marginBottom: '12px' }}>Waiting for opponent to count their hand...</p>
+                <div className="spinner" style={{ marginTop: '20px' }}></div>
+              </div>
+            )}
+
+            {countingPhase === 'crib' && gameState.isDealer && (
+              <div>
+                <p style={{ marginBottom: '12px' }}>Count the crib (4 cards + starter)</p>
+                <input
+                  type="number"
+                  min="0"
+                  max="29"
+                  value={playerScoreInput}
+                  onChange={(e) => setPlayerScoreInput(e.target.value)}
+                  placeholder="Enter points"
+                  style={{
+                    fontSize: '24px',
+                    padding: '12px',
+                    borderRadius: '8px',
+                    border: '2px solid #d4af37',
+                    background: '#3e2723',
+                    color: '#d4af37',
+                    width: '150px',
+                    textAlign: 'center',
+                    marginBottom: '16px'
+                  }}
+                />
+                <div>
+                  <Button onClick={handleSubmitScore}>
+                    Submit Crib Score
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {countingPhase === 'crib' && !gameState.isDealer && (
+              <div>
+                <p>Waiting for opponent (dealer) to count the crib...</p>
+                <div className="spinner" style={{ marginTop: '20px' }}></div>
+              </div>
+            )}
+
+            {countingPhase === 'complete' && gameState.phase !== 'game-over' && (
+              <div>
+                <p style={{ marginBottom: '16px' }}>Round {gameState.round} complete!</p>
+                <p style={{ fontSize: '16px', marginBottom: '20px' }}>
+                  Score: {gameState.playerScore} - {gameState.opponentScore}
+                </p>
+                <Button onClick={handleNextRound}>
+                  Start Next Round
+                </Button>
+              </div>
+            )}
           </div>
         )}
 

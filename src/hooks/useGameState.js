@@ -129,6 +129,16 @@ export function useGameState(seed, isDealer) {
     setPlayedCards([]);
   }, []);
 
+  // Check if play phase is complete (all cards played or both players passed)
+  const checkPlayComplete = useCallback(() => {
+    // If both players have no cards left, move to counting
+    if (playerHand.length === 0 && opponentHandCount === 0) {
+      setPhase('count');
+      return true;
+    }
+    return false;
+  }, [playerHand.length, opponentHandCount]);
+
   // Move to counting phase
   const startCountingPhase = useCallback(() => {
     setPhase('count');
@@ -158,6 +168,18 @@ export function useGameState(seed, isDealer) {
   // Start next round
   const nextRound = useCallback(() => {
     setRound(prev => prev + 1);
+    // Reset for new round
+    setPlayerHand([]);
+    setOpponentHandCount(0);
+    setCrib([]);
+    setStarterCard(null);
+    setPlayedCards([]);
+    setCurrentCount(0);
+    setPlayerSelectedForCrib([]);
+    // Switch dealer
+    setIsPlayerTurn(prev => !prev);
+    setPhase('deal');
+    // Re-initialize with same seed for next round
     initializeGame();
   }, [initializeGame]);
 
@@ -175,6 +197,7 @@ export function useGameState(seed, isDealer) {
     isPlayerTurn,
     playerSelectedForCrib,
     round,
+    isDealer,
 
     // Actions
     initializeGame,
@@ -186,6 +209,7 @@ export function useGameState(seed, isDealer) {
     opponentPlayedCard,
     callGo,
     resetCount,
+    checkPlayComplete,
     startCountingPhase,
     addPlayerPoints,
     addOpponentPoints,
