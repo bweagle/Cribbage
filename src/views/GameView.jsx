@@ -1,31 +1,136 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '../components/ui/Button.jsx';
-import { Card } from '../components/game/Card.jsx';
 import { Hand } from '../components/game/Hand.jsx';
 import { PlayArea } from '../components/game/PlayArea.jsx';
 import { PegBoard } from '../components/game/PegBoard.jsx';
+import { useGameState } from '../hooks/useGameState.js';
+import { MessageTypes } from '../constants/bluetoothConfig.js';
 
 export function GameView({ connection, role, onBack }) {
-  const [selectedCards, setSelectedCards] = useState([]);
-  const [playerScore, setPlayerScore] = useState(0);
-  const [opponentScore, setOpponentScore] = useState(0);
+  const [gameStarted, setGameStarted] = useState(false);
+  const [gameSeed, setGameSeed] = useState(null);
+  const [isDealer, setIsDealer] = useState(role === 'host');
+  const [lastPoints, setLastPoints] = useState(0);
 
-  // Sample game state for demo
-  const playerHand = [
-    { suit: 'hearts', rank: '5' },
-    { suit: 'diamonds', rank: 'K' },
-    { suit: 'clubs', rank: '7' },
-    { suit: 'spades', rank: 'A' },
-    { suit: 'hearts', rank: 'J' },
-    { suit: 'diamonds', rank: '9' },
-  ];
+  const gameState = useGameState(gameSeed, isDealer);
 
-  const playedCards = [
-    { suit: 'hearts', rank: '3', player: 'You' },
-    { suit: 'clubs', rank: '8', player: 'Opponent' },
-  ];
+  // Listen for WebRTC messages
+  useEffect(() => {
+    if (!connection) return;
 
-  // Fixed layout - no scrolling
+    const unsubscribe = connection.onMessage((message) => {
+      console.log('Game message received:', message);
+
+      switch (message.type) {
+        case MessageTypes.GAME_SEED:
+          // Received game seed from host
+          setGameSeed(message.payload.seed);
+          setIsDealer(false); // Guest is not dealer first round
+          break;
+
+        case MessageTypes.CRIB_CARDS:
+          // Opponent selected crib cards
+          gameState.opponentConfirmedCrib(message.payload.cards);
+          // Both players selected crib, start play phase
+          if (gameState.playerSelectedForCrib.length === 0) {
+            gameState.startPlayPhase();
+          }
+          break;
+
+        case MessageTypes.PLAY_CARD:
+          // Opponent played a card
+          gameState.opponentPlayedCard(
+            message.payload.card,
+            message.payload.count,
+            message.payload.points
+          );
+          if (message.payload.points > 0) {
+            setLastPoints(message.payload.points);
+            setTimeout(() => setLastPoints(0), 2000);
+          }
+          break;
+
+        case MessageTypes.CALL_GO:
+          // Opponent called "Go"
+          gameState.addPlayerPoints(1); // Player gets 1 point for opponent's go
+          setLastPoints(1);
+          setTimeout(() => setLastPoints(0), 2000);
+          break;
+
+        default:
+          break;
+      }
+    });
+
+    return unsubscribe;
+  }, [connection, gameState]);
+
+  // Initialize game when seed is received
+  useEffect(() => {
+    if (gameSeed && !gameStarted) {
+      gameState.initializeGame();
+      setGameStarted(true);
+    }
+  }, [gameSeed, gameStarted, gameState]);
+
+  // Handle confirming crib selection
+  const handleConfirmCrib = async () => {
+    const success = gameState.confirmCribSelection();
+    if (success && connection) {
+      // Send selected cards to opponent
+      await connection.sendMessage({
+        type: MessageTypes.CRIB_CARDS,
+        timestamp: Date.now(),
+        payload: { cards: gameState.playerSelectedForCrib },
+        messageId: `crib_${Date.now()}`
+      });
+
+      // Check if opponent already confirmed
+      if (gameState.crib.length >= 4) {
+        gameState.startPlayPhase();
+      }
+    }
+  };
+
+  // Handle playing a card
+  const handlePlayCard = async (card) => {
+    const result = gameState.playCard(card);
+
+    if (result.valid && connection) {
+      // Send played card to opponent
+      await connection.sendMessage({
+        type: MessageTypes.PLAY_CARD,
+        timestamp: Date.now(),
+        payload: {
+          card,
+          count: result.newCount,
+          points: result.points
+        },
+        messageId: `play_${Date.now()}`
+      });
+
+      if (result.points > 0) {
+        setLastPoints(result.points);
+        setTimeout(() => setLastPoints(0), 2000);
+      }
+    }
+  };
+
+  // Handle calling "Go"
+  const handleCallGo = async () => {
+    const result = gameState.callGo();
+
+    if (connection) {
+      await connection.sendMessage({
+        type: MessageTypes.CALL_GO,
+        timestamp: Date.now(),
+        payload: { points: result.points },
+        messageId: `go_${Date.now()}`
+      });
+    }
+  };
+
+  // Fixed layout styles
   const containerStyle = {
     height: '100vh',
     display: 'flex',
@@ -58,7 +163,7 @@ export function GameView({ connection, role, onBack }) {
     flexDirection: 'column',
     justifyContent: 'center',
     padding: '16px',
-    overflow: 'hidden',
+    overflow: 'auto',
     minHeight: 0,
   };
 
@@ -67,7 +172,7 @@ export function GameView({ connection, role, onBack }) {
     padding: '16px',
     background: 'linear-gradient(135deg, #5d4037 0%, #3e2723 100%)',
     borderTop: '2px solid #d4af37',
-    maxHeight: '180px',
+    maxHeight: '200px',
   };
 
   const titleStyle = {
@@ -78,10 +183,48 @@ export function GameView({ connection, role, onBack }) {
     textShadow: '0 2px 4px rgba(0, 0, 0, 0.8)',
   };
 
-  const statusStyle = {
+  const phaseStyle = {
     fontSize: '14px',
     color: '#e8d4b0',
     textShadow: '0 1px 2px rgba(0, 0, 0, 0.8)',
+  };
+
+  const messageStyle = {
+    textAlign: 'center',
+    fontSize: '18px',
+    color: '#d4af37',
+    padding: '20px',
+    background: 'linear-gradient(135deg, #5d4037 0%, #3e2723 100%)',
+    borderRadius: '12px',
+    border: '2px solid #d4af37',
+    margin: '20px',
+  };
+
+  // Show loading while waiting for game to start
+  if (!gameStarted) {
+    return (
+      <div style={containerStyle}>
+        <div style={{ ...playAreaSectionStyle, justifyContent: 'center', alignItems: 'center' }}>
+          <h2 style={{ color: '#d4af37', marginBottom: '20px' }}>Initializing Game...</h2>
+          <div className="spinner"></div>
+        </div>
+      </div>
+    );
+  }
+
+  const getPhaseDisplay = () => {
+    switch (gameState.phase) {
+      case 'crib':
+        return 'Select 2 cards for the crib';
+      case 'play':
+        return gameState.isPlayerTurn ? 'Your Turn' : "Opponent's Turn";
+      case 'count':
+        return 'Counting Hands';
+      case 'game-over':
+        return 'Game Over!';
+      default:
+        return 'Playing';
+    }
   };
 
   return (
@@ -89,16 +232,14 @@ export function GameView({ connection, role, onBack }) {
       {/* Header */}
       <div style={headerStyle}>
         <h1 style={titleStyle}>🎴 Cribbage</h1>
-        <div style={statusStyle}>
-          {role === 'host' ? 'Hosting' : 'Guest'} • Connected
-        </div>
+        <div style={phaseStyle}>{getPhaseDisplay()}</div>
       </div>
 
       {/* Peg Board Section */}
       <div style={pegBoardSectionStyle}>
         <PegBoard
-          player1Score={playerScore}
-          player2Score={opponentScore}
+          player1Score={gameState.playerScore}
+          player2Score={gameState.opponentScore}
           player1Name="You"
           player2Name="Opponent"
         />
@@ -106,23 +247,68 @@ export function GameView({ connection, role, onBack }) {
 
       {/* Play Area Section */}
       <div style={playAreaSectionStyle}>
-        <PlayArea
-          playedCards={playedCards}
-          currentCount={11}
-          lastPoints={0}
-          showCount={true}
-        />
+        {gameState.phase === 'crib' && (
+          <div style={messageStyle}>
+            <p>Select 2 cards from your hand for the crib</p>
+            <p style={{ fontSize: '14px', marginTop: '12px', color: '#8b7355' }}>
+              Selected: {gameState.playerSelectedForCrib.length} / 2
+            </p>
+            {gameState.playerSelectedForCrib.length === 2 && (
+              <Button onClick={handleConfirmCrib} style={{ marginTop: '16px' }}>
+                Confirm Selection
+              </Button>
+            )}
+          </div>
+        )}
+
+        {gameState.phase === 'play' && (
+          <PlayArea
+            playedCards={gameState.playedCards}
+            currentCount={gameState.currentCount}
+            lastPoints={lastPoints}
+            showCount={true}
+          />
+        )}
+
+        {gameState.phase === 'play' && gameState.isPlayerTurn && (
+          <div style={{ textAlign: 'center', marginTop: '16px' }}>
+            <Button onClick={handleCallGo} variant="secondary" size="medium">
+              Call "Go"
+            </Button>
+          </div>
+        )}
+
+        {gameState.phase === 'count' && (
+          <div style={messageStyle}>
+            <p>Counting phase - not yet implemented</p>
+            <p style={{ fontSize: '14px', marginTop: '12px', color: '#8b7355' }}>
+              Manual scoring will be added next
+            </p>
+          </div>
+        )}
+
+        {gameState.phase === 'game-over' && (
+          <div style={messageStyle}>
+            <h2 style={{ color: '#d4af37', marginBottom: '16px' }}>
+              {gameState.playerScore >= 121 ? 'You Win!' : 'Opponent Wins!'}
+            </h2>
+            <p>Final Score: {gameState.playerScore} - {gameState.opponentScore}</p>
+            <Button onClick={onBack} style={{ marginTop: '20px' }}>
+              Back to Lobby
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Player Hand Section */}
       <div style={playerHandSectionStyle}>
         <Hand
-          cards={playerHand}
+          cards={gameState.playerHand}
           faceUp={true}
-          selectable={true}
-          selectedCards={selectedCards}
-          onCardSelect={setSelectedCards}
-          maxSelection={1}
+          selectable={gameState.phase === 'crib' || (gameState.phase === 'play' && gameState.isPlayerTurn)}
+          selectedCards={gameState.playerSelectedForCrib}
+          onCardSelect={gameState.phase === 'crib' ? gameState.selectCardsForCrib : handlePlayCard}
+          maxSelection={gameState.phase === 'crib' ? 2 : 1}
         />
       </div>
     </div>
