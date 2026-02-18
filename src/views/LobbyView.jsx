@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Button } from '../components/ui/Button.jsx';
-import { useBluetooth } from '../hooks/useBluetooth.js';
+import { useWebRTC } from '../hooks/useWebRTC.js';
 import { MessageTypes } from '../constants/bluetoothConfig.js';
 
 export function LobbyView({ onGameReady, onBack }) {
-  const { status, device, error, connect, sendMessage, onMessage } = useBluetooth();
-  const [role, setRole] = useState(null); // 'host' or 'guest'
+  const { status, roomCode, error, hostGame, joinGame, sendMessage, onMessage, isHost } = useWebRTC();
+  const [mode, setMode] = useState(null); // 'host' or 'join'
+  const [inputCode, setInputCode] = useState('');
   const [gameId, setGameId] = useState(null);
 
   // Listen for messages
@@ -29,13 +30,13 @@ export function LobbyView({ onGameReady, onBack }) {
           console.log('Game seed received:', message.payload.seed);
           // Ready to start game
           setTimeout(() => {
-            onGameReady({ sendMessage, onMessage }, role);
+            onGameReady({ sendMessage, onMessage }, isHost ? 'host' : 'guest');
           }, 1000);
           break;
 
         case 'disconnected':
           // Handle disconnection
-          console.log('Bluetooth disconnected');
+          console.log('Peer disconnected');
           break;
 
         default:
@@ -44,21 +45,21 @@ export function LobbyView({ onGameReady, onBack }) {
     });
 
     return unsubscribe;
-  }, [onMessage, sendMessage, role, onGameReady]);
+  }, [onMessage, sendMessage, isHost, onGameReady]);
 
   // Auto-send handshake when connected
   useEffect(() => {
-    if (status === 'connected' && role) {
+    if (status === 'connected' && mode) {
       // Send initial handshake
       sendMessage({
         type: MessageTypes.HANDSHAKE,
         timestamp: Date.now(),
-        payload: { role },
+        payload: { role: isHost ? 'host' : 'guest' },
         messageId: `handshake_${Date.now()}`
       });
 
       // If host, generate and send game seed
-      if (role === 'host') {
+      if (isHost) {
         const seed = Math.random().toString(36).substring(2, 15);
         setGameId(seed);
 
@@ -72,34 +73,40 @@ export function LobbyView({ onGameReady, onBack }) {
 
           // Start game after sending seed
           setTimeout(() => {
-            onGameReady({ sendMessage, onMessage }, role);
+            onGameReady({ sendMessage, onMessage }, 'host');
           }, 1000);
         }, 500);
       }
     }
-  }, [status, role, sendMessage, onMessage, onGameReady]);
+  }, [status, mode, sendMessage, onMessage, onGameReady, isHost]);
 
   const handleHostGame = async () => {
-    setRole('host');
+    setMode('host');
     try {
-      await connect();
+      await hostGame();
     } catch (err) {
       console.error('Failed to host game:', err);
     }
   };
 
   const handleJoinGame = async () => {
-    setRole('guest');
+    if (!inputCode || inputCode.length !== 3) {
+      alert('Please enter a valid 3-digit room code');
+      return;
+    }
+
+    setMode('join');
     try {
-      await connect();
+      await joinGame(inputCode);
     } catch (err) {
       console.error('Failed to join game:', err);
     }
   };
 
   const handleBack = () => {
-    setRole(null);
+    setMode(null);
     setGameId(null);
+    setInputCode('');
     onBack();
   };
 
@@ -115,8 +122,9 @@ export function LobbyView({ onGameReady, onBack }) {
   const titleStyle = {
     fontSize: '32px',
     fontWeight: '700',
-    color: '#2196F3',
+    color: '#d4af37',
     marginBottom: '16px',
+    textShadow: '0 2px 4px rgba(0, 0, 0, 0.8)',
   };
 
   const statusBoxStyle = {
@@ -127,29 +135,61 @@ export function LobbyView({ onGameReady, onBack }) {
     marginTop: '20px',
   };
 
+  const roomCodeBoxStyle = {
+    background: 'linear-gradient(135deg, #5d4037 0%, #3e2723 100%)',
+    border: '3px solid #d4af37',
+    padding: '40px',
+    borderRadius: '16px',
+    marginTop: '20px',
+    boxShadow: '0 8px 16px rgba(0, 0, 0, 0.6)',
+  };
+
+  const roomCodeStyle = {
+    fontSize: '72px',
+    fontWeight: '700',
+    color: '#d4af37',
+    letterSpacing: '16px',
+    textShadow: '0 4px 8px rgba(0, 0, 0, 0.8)',
+    marginBottom: '16px',
+  };
+
+  const inputStyle = {
+    fontSize: '48px',
+    fontWeight: '700',
+    textAlign: 'center',
+    width: '200px',
+    padding: '16px',
+    borderRadius: '8px',
+    border: '3px solid #d4af37',
+    background: 'linear-gradient(135deg, #5d4037 0%, #3e2723 100%)',
+    color: '#d4af37',
+    letterSpacing: '16px',
+    marginBottom: '20px',
+  };
+
   const getStatusBox = () => {
     if (error) {
       return {
         ...statusBoxStyle,
-        backgroundColor: '#ffebee',
-        border: '2px solid #f44336',
-        color: '#c62828',
+        background: 'linear-gradient(135deg, #8b0000 0%, #600000 100%)',
+        border: '2px solid #600000',
+        color: '#e8d4b0',
       };
     }
     if (status === 'connected') {
       return {
         ...statusBoxStyle,
-        backgroundColor: '#e8f5e9',
+        background: 'linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%)',
         border: '2px solid #4caf50',
-        color: '#2e7d32',
+        color: '#e8d4b0',
       };
     }
     if (status === 'connecting') {
       return {
         ...statusBoxStyle,
-        backgroundColor: '#e3f2fd',
-        border: '2px solid #2196f3',
-        color: '#1565c0',
+        background: 'linear-gradient(135deg, #5d4037 0%, #3e2723 100%)',
+        border: '2px solid #d4af37',
+        color: '#e8d4b0',
       };
     }
     return statusBoxStyle;
@@ -159,95 +199,131 @@ export function LobbyView({ onGameReady, onBack }) {
     <div style={containerStyle}>
       <h1 style={titleStyle}>🎴 Game Lobby</h1>
 
-      {!role && status === 'disconnected' && (
+      {!mode && status === 'disconnected' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '400px' }}>
-          <p style={{ textAlign: 'center', fontSize: '18px', color: '#495057', marginBottom: '20px' }}>
+          <p style={{ textAlign: 'center', fontSize: '18px', color: '#e8d4b0', marginBottom: '20px' }}>
             Choose how to start the game:
           </p>
 
-          <Button size="large" onClick={handleJoinGame}>
-            🔍 Scan for Games
+          <Button size="large" onClick={handleHostGame}>
+            🏠 Host Game
           </Button>
 
-          <div style={{ textAlign: 'center', color: '#6c757d', margin: '10px 0' }}>
-            <p style={{ fontSize: '14px' }}>
-              This will scan for nearby devices.<br />
-              The other player should also scan.
-            </p>
+          <div style={{ textAlign: 'center', color: '#8b7355', margin: '10px 0' }}>
+            <p style={{ fontSize: '14px' }}>or</p>
           </div>
 
-          <Button size="medium" variant="secondary" onClick={handleBack}>
+          <Button size="large" variant="secondary" onClick={() => setMode('join')}>
+            🔗 Join Game
+          </Button>
+
+          <Button size="medium" variant="secondary" onClick={handleBack} style={{ marginTop: '20px' }}>
             ← Back
           </Button>
         </div>
       )}
 
-      {role === 'host' && (
+      {mode === 'host' && !roomCode && (
         <div style={{ textAlign: 'center', maxWidth: '500px' }}>
-          <h2 style={{ fontSize: '24px', marginBottom: '16px', color: '#212529' }}>
-            {status === 'connected' ? '✓ Connected!' : 'Hosting Game...'}
+          <h2 style={{ fontSize: '24px', marginBottom: '16px', color: '#e8d4b0' }}>
+            Creating Room...
           </h2>
-
-          {status === 'connecting' && (
-            <>
-              <p style={{ color: '#6c757d', marginBottom: '20px' }}>
-                Your device is now discoverable. Waiting for another player to join...
-              </p>
-              <div className="spinner"></div>
-            </>
-          )}
-
-          {status === 'connected' && (
-            <div style={getStatusBox()}>
-              <p style={{ fontSize: '18px', fontWeight: '600', marginBottom: '8px' }}>
-                Connected to: {device}
-              </p>
-              <p>Starting game...</p>
-              <div className="spinner" style={{ marginTop: '20px' }}></div>
-            </div>
-          )}
-
-          {status !== 'connected' && (
-            <Button onClick={handleBack} style={{ marginTop: '40px' }}>
-              Cancel
-            </Button>
-          )}
+          <div className="spinner"></div>
         </div>
       )}
 
-      {role === 'guest' && (
+      {mode === 'host' && roomCode && status !== 'connected' && (
         <div style={{ textAlign: 'center', maxWidth: '500px' }}>
-          <h2 style={{ fontSize: '24px', marginBottom: '16px', color: '#212529' }}>
-            {status === 'connected' ? '✓ Connected!' : 'Scanning for Games...'}
+          <h2 style={{ fontSize: '24px', marginBottom: '16px', color: '#e8d4b0' }}>
+            Room Created!
           </h2>
+          <p style={{ color: '#8b7355', marginBottom: '20px' }}>
+            Share this code with your opponent:
+          </p>
 
-          {status === 'connecting' && (
-            <>
-              <p style={{ color: '#6c757d', marginBottom: '20px' }}>
-                Looking for nearby Cribbage games...
-              </p>
-              <div className="spinner"></div>
-              <p style={{ color: '#6c757d', marginTop: '20px', fontSize: '14px' }}>
-                Make sure Bluetooth is enabled and the other device is in range.
-              </p>
-            </>
-          )}
+          <div style={roomCodeBoxStyle}>
+            <div style={roomCodeStyle}>{roomCode}</div>
+            <p style={{ fontSize: '18px', color: '#8b7355' }}>
+              Waiting for opponent to join...
+            </p>
+            <div className="spinner" style={{ marginTop: '20px' }}></div>
+          </div>
 
-          {status === 'connected' && (
-            <div style={getStatusBox()}>
-              <p style={{ fontSize: '18px', fontWeight: '600', marginBottom: '8px' }}>
-                Connected to: {device}
-              </p>
-              <p>Waiting for game to start...</p>
-              <div className="spinner" style={{ marginTop: '20px' }}></div>
-            </div>
-          )}
+          <Button onClick={handleBack} style={{ marginTop: '40px' }}>
+            Cancel
+          </Button>
+        </div>
+      )}
 
-          {status !== 'connected' && (
-            <Button onClick={handleBack} style={{ marginTop: '40px' }}>
+      {mode === 'host' && status === 'connected' && (
+        <div style={getStatusBox()}>
+          <p style={{ fontSize: '18px', fontWeight: '600', marginBottom: '8px' }}>
+            ✓ Opponent Connected!
+          </p>
+          <p>Starting game...</p>
+          <div className="spinner" style={{ marginTop: '20px' }}></div>
+        </div>
+      )}
+
+      {mode === 'join' && status === 'disconnected' && (
+        <div style={{ textAlign: 'center', maxWidth: '500px' }}>
+          <h2 style={{ fontSize: '24px', marginBottom: '16px', color: '#e8d4b0' }}>
+            Enter Room Code
+          </h2>
+          <p style={{ color: '#8b7355', marginBottom: '20px' }}>
+            Enter the 3-digit code from your opponent:
+          </p>
+
+          <input
+            type="text"
+            maxLength="3"
+            pattern="[0-9]*"
+            inputMode="numeric"
+            value={inputCode}
+            onChange={(e) => setInputCode(e.target.value.replace(/\D/g, ''))}
+            style={inputStyle}
+            placeholder="---"
+            autoFocus
+          />
+
+          <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+            <Button
+              size="large"
+              onClick={handleJoinGame}
+              disabled={inputCode.length !== 3}
+            >
+              Join Game
+            </Button>
+            <Button
+              size="large"
+              variant="secondary"
+              onClick={handleBack}
+            >
               Cancel
             </Button>
-          )}
+          </div>
+        </div>
+      )}
+
+      {mode === 'join' && status === 'connecting' && (
+        <div style={{ textAlign: 'center', maxWidth: '500px' }}>
+          <h2 style={{ fontSize: '24px', marginBottom: '16px', color: '#e8d4b0' }}>
+            Connecting...
+          </h2>
+          <p style={{ color: '#8b7355', marginBottom: '20px' }}>
+            Joining room {inputCode}...
+          </p>
+          <div className="spinner"></div>
+        </div>
+      )}
+
+      {mode === 'join' && status === 'connected' && (
+        <div style={getStatusBox()}>
+          <p style={{ fontSize: '18px', fontWeight: '600', marginBottom: '8px' }}>
+            ✓ Connected!
+          </p>
+          <p>Waiting for game to start...</p>
+          <div className="spinner" style={{ marginTop: '20px' }}></div>
         </div>
       )}
 
@@ -255,15 +331,8 @@ export function LobbyView({ onGameReady, onBack }) {
         <div style={getStatusBox()}>
           <strong>Error:</strong> {error}
           <p style={{ fontSize: '14px', marginTop: '12px' }}>
-            Make sure Bluetooth is enabled and try again.
+            Please check the room code and try again.
           </p>
-        </div>
-      )}
-
-      {status === 'connected' && !error && (
-        <div style={{ marginTop: '20px', fontSize: '14px', color: '#6c757d' }}>
-          <p>✓ Bluetooth connected</p>
-          <p>Device: {device}</p>
         </div>
       )}
     </div>
